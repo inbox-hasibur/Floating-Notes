@@ -48,38 +48,19 @@ export default function FloatingPage() {
     return () => { if (syncRef.current) clearInterval(syncRef.current); };
   }, []);
 
-  const format = (cmd: string, value?: string) => {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    document.execCommand(cmd, false, value);
-    contentRef.current?.focus();
-  };
-
   return (
     <div style={{
       height: '100vh', display: 'flex', flexDirection: 'column',
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       background: '#15181c', color: '#d4d4d8',
     }}>
-      {/* Single toolbar: formatting LEFT, window controls RIGHT */}
-      <div className="toolbar">
-        <div className="toolbar-left">
-          <button onClick={() => format('bold')} title="Bold"><b>B</b></button>
-          <button onClick={() => format('italic')} title="Italic"><i>I</i></button>
-          <span className="separator" />
-          <button onClick={() => format('formatBlock', '<H1>')} title="Heading 1">H1</button>
-          <button onClick={() => format('formatBlock', '<H2>')} title="Heading 2">H2</button>
-          <span className="separator" />
-          <button onClick={() => format('insertUnorderedList')} title="Bullet list">•</button>
-          <button onClick={() => format('insertOrderedList')} title="Numbered list">1.</button>
-          <span className="separator" />
-          <button onClick={() => format('formatBlock', '<BLOCKQUOTE>')} title="Quote">"</button>
-        </div>
-        <div className="toolbar-right">
-          <button onClick={() => window.alert('Minimize')} title="Minimize">−</button>
-          <button onClick={() => window.alert('Maximize')} title="Maximize">□</button>
-          <button onClick={() => window.close()} title="Close">✕</button>
-        </div>
+      {/* Minimal top bar */}
+      <div className="top-bar">
+        <span className="pin-label">📌 Pinned</span>
+        <button
+          onClick={() => window.close()}
+          title="Close"
+        >✕</button>
       </div>
 
       <div

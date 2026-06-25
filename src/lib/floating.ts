@@ -1,7 +1,7 @@
 /**
  * Floating Window Utility
  * 
- * Opens a note in a separate floating popup window with a single toolbar.
+ * Opens a note in a separate floating popup window.
  */
 
 const FLOATING_STYLES = `
@@ -15,28 +15,25 @@ const FLOATING_STYLES = `
       overflow: hidden;
     }
     #floating-editor { height: 100vh; display: flex; flex-direction: column; }
-    .toolbar {
-      height: 30px;
+    .top-bar {
+      height: 28px;
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0 6px;
+      padding: 0 8px;
       background: #1e2329;
       border-bottom: 1px solid #27272a;
       flex-shrink: 0;
       user-select: none;
     }
-    .toolbar-left, .toolbar-right {
-      display: flex; align-items: center; gap: 1px;
+    .top-bar button {
+      background: none; border: none; color: #52525b; cursor: pointer;
+      padding: 2px 6px; border-radius: 3px; font-size: 11px;
+      line-height: 1; transition: all 0.12s ease;
     }
-    .toolbar button {
-      background: none; border: none; color: #71717a; cursor: pointer;
-      padding: 3px 5px; border-radius: 3px; font-size: 11px;
-      line-height: 1; transition: all 0.1s ease;
-      display: inline-flex; align-items: center; justify-content: center;
-      min-width: 20px; height: 20px;
-    }
-    .toolbar button:hover { background: #27272a; color: #e4e4e7; }
-    .toolbar .separator {
-      width: 1px; height: 12px; background: #27272a; margin: 0 3px;
+    .top-bar button:hover { background: #27272a; color: #e4e4e7; }
+    .pin-label {
+      font-size: 11px;
+      color: #52525b;
+      cursor: default;
     }
     .content {
       flex: 1; padding: 16px 20px; overflow-y: auto;
@@ -65,7 +62,7 @@ interface FloatingWindowConfig {
 export function openPopupWindow(
   noteId: string,
   noteTitle: string,
-  config: FloatingWindowConfig = { width: 600, height: 420 }
+  config: FloatingWindowConfig = { width: 480, height: 400 }
 ): Window | null {
   const { width, height } = config;
   const left = config.left ?? Math.round((screen.width - width) / 2);
