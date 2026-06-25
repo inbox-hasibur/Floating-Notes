@@ -1,0 +1,16 @@
+{
+  "name": "Floating Notes",
+  "short_name": "FloatNote",
+  "description": "Personal productivity companion with un-docking, resizing, and always-on-top features.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#15181c",
+  "theme_color": "#15181c",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}
