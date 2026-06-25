@@ -1,11 +1,9 @@
 /**
  * Floating Window Utility
  * 
- * Manages Document Picture-in-Picture (PiP) and standard popup windows
- * for the un-docked note editor experience.
+ * Opens a note in a separate floating popup window.
  */
 
-// Ultra-minimal CSS for floating window
 const FLOATING_STYLES = `
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -19,11 +17,12 @@ const FLOATING_STYLES = `
     #floating-editor { height: 100vh; display: flex; flex-direction: column; }
     .top-bar {
       height: 28px;
-      display: flex; align-items: center; justify-content: flex-end;
-      padding: 0 6px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 8px;
       background: #1e2329;
       border-bottom: 1px solid #27272a;
       flex-shrink: 0;
+      user-select: none;
     }
     .top-bar button {
       background: none; border: none; color: #52525b; cursor: pointer;
@@ -31,6 +30,11 @@ const FLOATING_STYLES = `
       line-height: 1; transition: all 0.12s ease;
     }
     .top-bar button:hover { background: #27272a; color: #e4e4e7; }
+    .pin-status {
+      font-size: 11px;
+      color: #52525b;
+      cursor: default;
+    }
     .content {
       flex: 1; padding: 16px 20px; overflow-y: auto;
       font-size: 14px; line-height: 1.6; color: #d4d4d8; outline: none;
@@ -55,13 +59,6 @@ interface FloatingWindowConfig {
   top?: number;
 }
 
-export function isPiPSupported(): boolean {
-  return 'documentPictureInPicture' in window;
-}
-
-/**
- * Open a note in a minimal popup window
- */
 export function openPopupWindow(
   noteId: string,
   noteTitle: string,
@@ -72,126 +69,16 @@ export function openPopupWindow(
   const top = config.top ?? Math.round((screen.height - height) / 2);
 
   const features = [
-    `width=${width}`,
-    `height=${height}`,
-    `left=${left}`,
-    `top=${top}`,
-    'menubar=no', 'toolbar=no', 'location=no',
-    'status=no', 'resizable=yes', 'scrollbars=yes',
+    `width=${width}`, `height=${height}`, `left=${left}`, `top=${top}`,
+    'menubar=no', 'toolbar=no', 'location=no', 'status=no',
+    'resizable=yes', 'scrollbars=yes',
   ].join(',');
 
   return window.open(
     `/floating?noteId=${noteId}&title=${encodeURIComponent(noteTitle)}`,
-    `floating-note-${noteId}`,
+    `float-${noteId}`,
     features
   );
-}
-
-/**
- * Open a note using the Document Picture-in-Picture API (Always-on-Top)
- */
-export async function openPiPWindow(
-  noteId: string,
-  noteTitle: string,
-  config: FloatingWindowConfig = { width: 440, height: 400 }
-): Promise<Window | null> {
-  if (!isPiPSupported()) {
-    return openPopupWindow(noteId, noteTitle, config);
-  }
-
-  try {
-    const pipWindow = await (window as any).documentPictureInPicture.requestWindow({
-      width: config.width,
-      height: config.height,
-    });
-
-    const doc = pipWindow.document;
-    doc.head.insertAdjacentHTML('beforeend', FLOATING_STYLES);
-
-    doc.body.innerHTML = `
-      <div id="floating-editor">
-        <div class="top-bar">
-          <button id="btn-pin" title="Pin (Always on Top)">📌</button>
-          <button id="btn-close" title="Close">✕</button>
-        </div>
-        <div id="fc" class="content" contenteditable="true" data-placeholder="Write..."></div>
-      </div>
-    `;
-
-    let isPinned = true;
-    const btnPin = doc.getElementById('btn-pin');
-    const btnClose = doc.getElementById('btn-close');
-
-    btnPin?.addEventListener('click', async () => {
-      isPinned = !isPinned;
-      if (isPinned) {
-        btnPin.textContent = '📌';
-        btnPin.title = 'Pin (Always on Top)';
-        // Re-request PiP to bring back on top
-        try {
-          const newPip = await (window as any).documentPictureInPicture.requestWindow({
-            width: config.width,
-            height: config.height,
-          });
-          newPip.document.head.insertAdjacentHTML('beforeend', FLOATING_STYLES);
-          newPip.document.body.innerHTML = doc.body.innerHTML;
-          // Transfer content
-          const newContent = newPip.document.getElementById('fc');
-          if (newContent) newContent.innerHTML = doc.getElementById('fc')?.innerHTML || '';
-          pipWindow.close();
-          return newPip;
-        } catch {}
-      } else {
-        btnPin.textContent = '📍';
-        btnPin.title = 'Unpinned — click to pin again';
-      }
-    });
-
-    btnClose?.addEventListener('click', () => pipWindow.close());
-
-    const contentDiv = doc.getElementById('fc');
-    if (contentDiv) {
-      const stored = localStorage.getItem('floating-notes-storage');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const note = parsed?.state?.notes?.find((n: any) => n.id === noteId);
-          if (note?.content) contentDiv.innerHTML = note.content;
-        } catch {}
-      }
-    }
-
-    const syncInterval = setInterval(() => {
-      if (pipWindow.closed) { clearInterval(syncInterval); return; }
-      const pipContent = doc.getElementById('fc')?.innerHTML;
-      if (!pipContent) return;
-
-      const stored = localStorage.getItem('floating-notes-storage');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const state = parsed?.state;
-          if (state) {
-            const idx = state.notes?.findIndex((n: any) => n.id === noteId);
-            if (idx !== -1 && state.notes[idx]?.content !== pipContent) {
-              state.notes[idx].content = pipContent;
-              state.notes[idx].updatedAt = Date.now();
-              const tempDiv = doc.createElement('div');
-              tempDiv.innerHTML = pipContent;
-              const firstText = tempDiv.textContent?.trim() || '';
-              state.notes[idx].title = firstText.split('\n')[0]?.substring(0, 50) || 'Untitled';
-              localStorage.setItem('floating-notes-storage', JSON.stringify(parsed));
-            }
-          }
-        } catch {}
-      }
-    }, 500);
-
-    pipWindow.addEventListener('pagehide', () => clearInterval(syncInterval));
-    return pipWindow;
-  } catch {
-    return null;
-  }
 }
 
 export function closeFloatingWindow(win: Window | null): void {
