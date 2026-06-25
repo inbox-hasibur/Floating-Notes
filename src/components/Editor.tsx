@@ -5,11 +5,13 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useNoteStore } from '@/store/useNoteStore';
 import { useEffect, useRef } from 'react';
+import FloatingDock from './FloatingDock';
 
 export default function Editor() {
-  const { notes, activeNoteId, updateNote } = useNoteStore();
+  const { notes, activeNoteId, updateNote, floatingWindowOpen } = useNoteStore();
   const activeNote = notes.find((n) => n.id === activeNoteId);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const storageListenerRef = useRef<(() => void) | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -54,6 +56,36 @@ export default function Editor() {
     }
   }, [activeNoteId, editor]);
 
+  // Listen for localStorage changes from floating window (PiP/popup)
+  useEffect(() => {
+    if (!activeNoteId || !editor) return;
+
+    // Poll localStorage for changes made by the floating window
+    const storagePoll = setInterval(() => {
+      if (!floatingWindowOpen) return;
+
+      const stored = localStorage.getItem('floating-notes-storage');
+      if (!stored) return;
+
+      try {
+        const parsed = JSON.parse(stored);
+        const state = parsed?.state;
+        if (!state) return;
+
+        const note = state.notes?.find((n: any) => n.id === activeNoteId);
+        if (note?.content && note.content !== editor.getHTML()) {
+          // Only update if editor isn't focused (user is typing in main window)
+          const isEditorFocused = window.document.activeElement?.closest('.ProseMirror');
+          if (!isEditorFocused) {
+            editor.commands.setContent(note.content);
+          }
+        }
+      } catch {}
+    }, 800);
+
+    return () => clearInterval(storagePoll);
+  }, [activeNoteId, editor, floatingWindowOpen]);
+
   if (!activeNoteId) {
     return (
       <div className="flex-1 flex items-center justify-center bg-[#15181c] text-zinc-500">
@@ -64,7 +96,17 @@ export default function Editor() {
 
   return (
     <div className="flex-1 bg-[#15181c] text-zinc-100 overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-8 py-12">
+      {/* Floating Dock Toolbar */}
+      <div className="sticky top-0 z-10 bg-[#15181c]/80 backdrop-blur-sm border-b border-zinc-800 px-6 py-2">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="text-sm text-zinc-400 font-medium truncate">
+            {activeNote?.title || 'Untitled Note'}
+          </div>
+          <FloatingDock />
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-8 py-8">
         <EditorContent editor={editor} />
       </div>
     </div>

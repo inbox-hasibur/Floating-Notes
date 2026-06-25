@@ -8,13 +8,19 @@ export interface Note {
   updatedAt: number;
 }
 
+type FloatingMode = 'docked' | 'pip' | 'popup';
+
 interface NoteState {
   notes: Note[];
   activeNoteId: string | null;
+  floatingMode: FloatingMode;
+  floatingWindowOpen: boolean;
   addNote: () => void;
   updateNote: (id: string, updates: Partial<Note>) => void;
   deleteNote: (id: string) => void;
   setActiveNoteId: (id: string | null) => void;
+  setFloatingMode: (mode: FloatingMode) => void;
+  setFloatingWindowOpen: (open: boolean) => void;
 }
 
 export const useNoteStore = create<NoteState>()(
@@ -22,6 +28,9 @@ export const useNoteStore = create<NoteState>()(
     (set, get) => ({
       notes: [],
       activeNoteId: null,
+      floatingMode: 'docked',
+      floatingWindowOpen: false,
+
       addNote: () => {
         const newNote: Note = {
           id: Date.now().toString(),
@@ -34,6 +43,7 @@ export const useNoteStore = create<NoteState>()(
           activeNoteId: newNote.id,
         }))
       },
+
       updateNote: (id, updates) => {
         set((state) => ({
           notes: state.notes.map((note) =>
@@ -43,13 +53,19 @@ export const useNoteStore = create<NoteState>()(
           ),
         }))
       },
+
       deleteNote: (id) => {
         set((state) => ({
           notes: state.notes.filter((note) => note.id !== id),
           activeNoteId: state.activeNoteId === id ? null : state.activeNoteId,
         }))
       },
+
       setActiveNoteId: (id) => set({ activeNoteId: id }),
+
+      setFloatingMode: (mode) => set({ floatingMode: mode }),
+
+      setFloatingWindowOpen: (open) => set({ floatingWindowOpen: open }),
     }),
     {
       name: 'floating-notes-storage',
