@@ -55,10 +55,11 @@ export default function FloatingPage() {
       background: '#15181c', color: '#d4d4d8',
     }}>
       <div style={{
-        height: 28, display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+        height: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 6px', background: '#1e2329', borderBottom: '1px solid #27272a',
         flexShrink: 0, userSelect: 'none',
       }}>
+        <span style={{ fontSize: 11, color: '#52525b', cursor: 'default' }}>📌 Pinned</span>
         <button
           onClick={() => window.close()}
           style={{

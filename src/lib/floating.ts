@@ -111,13 +111,43 @@ export async function openPiPWindow(
     doc.body.innerHTML = `
       <div id="floating-editor">
         <div class="top-bar">
+          <button id="btn-pin" title="Pin (Always on Top)">📌</button>
           <button id="btn-close" title="Close">✕</button>
         </div>
         <div id="fc" class="content" contenteditable="true" data-placeholder="Write..."></div>
       </div>
     `;
 
-    doc.getElementById('btn-close')?.addEventListener('click', () => pipWindow.close());
+    let isPinned = true;
+    const btnPin = doc.getElementById('btn-pin');
+    const btnClose = doc.getElementById('btn-close');
+
+    btnPin?.addEventListener('click', async () => {
+      isPinned = !isPinned;
+      if (isPinned) {
+        btnPin.textContent = '📌';
+        btnPin.title = 'Pin (Always on Top)';
+        // Re-request PiP to bring back on top
+        try {
+          const newPip = await (window as any).documentPictureInPicture.requestWindow({
+            width: config.width,
+            height: config.height,
+          });
+          newPip.document.head.insertAdjacentHTML('beforeend', FLOATING_STYLES);
+          newPip.document.body.innerHTML = doc.body.innerHTML;
+          // Transfer content
+          const newContent = newPip.document.getElementById('fc');
+          if (newContent) newContent.innerHTML = doc.getElementById('fc')?.innerHTML || '';
+          pipWindow.close();
+          return newPip;
+        } catch {}
+      } else {
+        btnPin.textContent = '📍';
+        btnPin.title = 'Unpinned — click to pin again';
+      }
+    });
+
+    btnClose?.addEventListener('click', () => pipWindow.close());
 
     const contentDiv = doc.getElementById('fc');
     if (contentDiv) {
