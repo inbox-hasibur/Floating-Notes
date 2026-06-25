@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Floating Notes — Your Notes, Anywhere, Always on Top
 
-## Getting Started
+**URL:** [https://floating-notes.vercel.app/](https://floating-notes.vercel.app/)
 
-First, run the development server:
+![Next.js](https://img.shields.io/badge/Next.js-black?style=for-the-badge&logo=next.js&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white) ![NextAuth](https://img.shields.io/badge/NextAuth-black?style=for-the-badge&logo=next-auth&logoColor=white)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Floating Notes is a productivity app that lets you write notes in a browser and instantly "float" them into a separate, always-accessible window on your desktop. No more tab-switching — your notes stay visible while you work in other apps.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Key Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Un-Dock Your Notes**
+- **Float Mode:** One click pops your note into a separate, resizable window that stays on top of all other apps.
+- **Always Accessible:** Write in one window, reference in another — perfect for research, coding, or quick memos.
+- **Real-Time Sync:** Edits sync instantly between the main app and floating window.
 
-## Learn More
+**Rich Editing**
+- **Formatting Toolbar:** Bold, italic, headings (H1/H2), bullet/numbered lists, blockquotes, and code blocks.
+- **Auto-Save:** Notes save automatically as you type — no manual save button needed.
+- **Multi-Format Export:** Download notes as Markdown (.md), Plain Text (.txt), or HTML (.html).
 
-To learn more about Next.js, take a look at the following resources:
+**Cloud Sync & Auth**
+- **Google OAuth:** One-click sign-in with Google.
+- **Email + Password:** Simple email-based login for quick access.
+- **Local-First:** Works offline with localStorage. Cloud sync merges your notes when you log in.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Clean, Minimal UI**
+- **Dual Themes:** Dark mode (default) and light mode — toggle with one click.
+- **Slim Floating Window:** Minimal toolbar, no clutter, just your content.
+- **PWA Ready:** Install as a standalone app on your OS.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Tech Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4
+- **Editor:** TipTap (ProseMirror-based rich-text editor)
+- **State Management:** Zustand with localStorage persistence
+- **Auth:** NextAuth.js (Google OAuth + Credentials)
+- **Database:** MongoDB Atlas with Mongoose
+- **Theming:** next-themes (Dark + Light)
+- **Deployment:** Vercel
