@@ -16,28 +16,27 @@ const FLOATING_STYLES = `
     }
     #floating-editor { height: 100vh; display: flex; flex-direction: column; }
     .toolbar {
-      height: 32px;
+      height: 30px;
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0 8px;
+      padding: 0 6px;
       background: #1e2329;
       border-bottom: 1px solid #27272a;
       flex-shrink: 0;
       user-select: none;
     }
     .toolbar-left, .toolbar-right {
-      display: flex; align-items: center; gap: 2px;
+      display: flex; align-items: center; gap: 1px;
     }
     .toolbar button {
       background: none; border: none; color: #71717a; cursor: pointer;
-      padding: 4px 8px; border-radius: 4px; font-size: 12px;
-      line-height: 1; transition: all 0.12s ease;
-      display: flex; align-items: center; justify-content: center;
-      min-width: 24px; height: 22px;
+      padding: 3px 5px; border-radius: 3px; font-size: 11px;
+      line-height: 1; transition: all 0.1s ease;
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 20px; height: 20px;
     }
     .toolbar button:hover { background: #27272a; color: #e4e4e7; }
-    .toolbar button.active { background: #3b82f6; color: #fff; }
     .toolbar .separator {
-      width: 1px; height: 16px; background: #27272a; margin: 0 4px;
+      width: 1px; height: 12px; background: #27272a; margin: 0 3px;
     }
     .content {
       flex: 1; padding: 16px 20px; overflow-y: auto;
@@ -66,7 +65,7 @@ interface FloatingWindowConfig {
 export function openPopupWindow(
   noteId: string,
   noteTitle: string,
-  config: FloatingWindowConfig = { width: 480, height: 420 }
+  config: FloatingWindowConfig = { width: 600, height: 420 }
 ): Window | null {
   const { width, height } = config;
   const left = config.left ?? Math.round((screen.width - width) / 2);
