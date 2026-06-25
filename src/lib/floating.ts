@@ -1,7 +1,7 @@
 /**
  * Floating Window Utility
  * 
- * Opens a note in a separate floating popup window.
+ * Opens a note in a separate floating popup window with a single toolbar.
  */
 
 const FLOATING_STYLES = `
@@ -15,8 +15,8 @@ const FLOATING_STYLES = `
       overflow: hidden;
     }
     #floating-editor { height: 100vh; display: flex; flex-direction: column; }
-    .top-bar {
-      height: 28px;
+    .toolbar {
+      height: 32px;
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 8px;
       background: #1e2329;
@@ -24,16 +24,20 @@ const FLOATING_STYLES = `
       flex-shrink: 0;
       user-select: none;
     }
-    .top-bar button {
-      background: none; border: none; color: #52525b; cursor: pointer;
-      padding: 2px 6px; border-radius: 3px; font-size: 11px;
-      line-height: 1; transition: all 0.12s ease;
+    .toolbar-left, .toolbar-right {
+      display: flex; align-items: center; gap: 2px;
     }
-    .top-bar button:hover { background: #27272a; color: #e4e4e7; }
-    .pin-status {
-      font-size: 11px;
-      color: #52525b;
-      cursor: default;
+    .toolbar button {
+      background: none; border: none; color: #71717a; cursor: pointer;
+      padding: 4px 8px; border-radius: 4px; font-size: 12px;
+      line-height: 1; transition: all 0.12s ease;
+      display: flex; align-items: center; justify-content: center;
+      min-width: 24px; height: 22px;
+    }
+    .toolbar button:hover { background: #27272a; color: #e4e4e7; }
+    .toolbar button.active { background: #3b82f6; color: #fff; }
+    .toolbar .separator {
+      width: 1px; height: 16px; background: #27272a; margin: 0 4px;
     }
     .content {
       flex: 1; padding: 16px 20px; overflow-y: auto;
@@ -62,7 +66,7 @@ interface FloatingWindowConfig {
 export function openPopupWindow(
   noteId: string,
   noteTitle: string,
-  config: FloatingWindowConfig = { width: 440, height: 400 }
+  config: FloatingWindowConfig = { width: 480, height: 420 }
 ): Window | null {
   const { width, height } = config;
   const left = config.left ?? Math.round((screen.width - width) / 2);

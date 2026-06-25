@@ -48,28 +48,40 @@ export default function FloatingPage() {
     return () => { if (syncRef.current) clearInterval(syncRef.current); };
   }, []);
 
+  const format = (cmd: string, value?: string) => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    document.execCommand(cmd, false, value);
+    contentRef.current?.focus();
+  };
+
   return (
     <div style={{
       height: '100vh', display: 'flex', flexDirection: 'column',
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       background: '#15181c', color: '#d4d4d8',
     }}>
-      <div style={{
-        height: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 8px', background: '#1e2329', borderBottom: '1px solid #27272a',
-        flexShrink: 0, userSelect: 'none',
-      }}>
-        <span className="pin-status">📌 Pinned</span>
-        <button
-          onClick={() => window.close()}
-          style={{
-            background: 'none', border: 'none', color: '#52525b', cursor: 'pointer',
-            padding: '2px 6px', borderRadius: 3, fontSize: 11, lineHeight: 1,
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = '#27272a'; e.currentTarget.style.color = '#e4e4e7'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#52525b'; }}
-        >✕</button>
+      {/* Single toolbar: formatting LEFT, window controls RIGHT */}
+      <div className="toolbar">
+        <div className="toolbar-left">
+          <button onClick={() => format('bold')} title="Bold"><b>B</b></button>
+          <button onClick={() => format('italic')} title="Italic"><i>I</i></button>
+          <span className="separator" />
+          <button onClick={() => format('formatBlock', '<H1>')} title="Heading 1">H1</button>
+          <button onClick={() => format('formatBlock', '<H2>')} title="Heading 2">H2</button>
+          <span className="separator" />
+          <button onClick={() => format('insertUnorderedList')} title="Bullet list">•</button>
+          <button onClick={() => format('insertOrderedList')} title="Numbered list">1.</button>
+          <span className="separator" />
+          <button onClick={() => format('formatBlock', '<BLOCKQUOTE>')} title="Quote">"</button>
+        </div>
+        <div className="toolbar-right">
+          <button onClick={() => window.alert('Minimize')} title="Minimize">−</button>
+          <button onClick={() => window.alert('Maximize')} title="Maximize">□</button>
+          <button onClick={() => window.close()} title="Close">✕</button>
+        </div>
       </div>
+
       <div
         ref={contentRef}
         contentEditable
