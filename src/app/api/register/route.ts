@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import clientPromise from '@/lib/db/mongodbClient';
+import getClientPromise from '@/lib/db/mongodbClient';
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
     }
 
-    const db = (await clientPromise).db();
+    const db = (await getClientPromise()).db();
     const existing = await db.collection('users').findOne({ email });
     if (existing) {
       return NextResponse.json({ error: 'User already exists' }, { status: 400 });

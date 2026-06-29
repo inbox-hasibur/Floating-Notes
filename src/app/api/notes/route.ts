@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getAuthOptions } from '@/lib/auth';
 import dbConnect from '@/lib/db/mongodb';
 import Note from '@/models/Note';
 
 // GET /api/notes — fetch all notes for the logged-in user
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(await getAuthOptions());
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -27,7 +27,7 @@ export async function GET() {
 // POST /api/notes — create a new note
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(await getAuthOptions());
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 // PUT /api/notes — update a note
 export async function PUT(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(await getAuthOptions());
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -87,7 +87,7 @@ export async function PUT(request: Request) {
 // DELETE /api/notes — delete a note
 export async function DELETE(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(await getAuthOptions());
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
