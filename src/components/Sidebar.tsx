@@ -5,10 +5,10 @@ import { useNoteStore } from '@/store/useNoteStore';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { migrateLocalToCloud } from '@/lib/migrate';
 import { useTheme } from 'next-themes';
-import { Plus, LogIn, LogOut, Cloud, Loader2, Sun, Moon, Mail, Lock, UserPlus, Pencil } from 'lucide-react';
+import { Plus, LogIn, LogOut, Cloud, Loader2, Sun, Moon, Mail, Lock, UserPlus, Pencil, Trash2 } from 'lucide-react';
 
 export default function Sidebar() {
-  const { notes, activeNoteId, addNote, updateNote, setActiveNoteId, floatingWindowOpen } = useNoteStore();
+  const { notes, activeNoteId, addNote, updateNote, deleteNote, setActiveNoteId, floatingWindowOpen } = useNoteStore();
   const { data: session, status } = useSession();
   const { theme, setTheme } = useTheme();
   const [syncing, setSyncing] = useState(false);
@@ -174,6 +174,20 @@ export default function Sidebar() {
                     onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
                   >
                     <Pencil size={10} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm('Delete this note?')) {
+                        deleteNote(note.id);
+                      }
+                    }}
+                    className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                    style={{ color: 'var(--text-muted)' }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                  >
+                    <Trash2 size={10} />
                   </button>
                   {floatingWindowOpen && activeNoteId === note.id && (
                     <span style={{ color: '#3b82f6', fontSize: 10, flexShrink: 0 }}>↗</span>

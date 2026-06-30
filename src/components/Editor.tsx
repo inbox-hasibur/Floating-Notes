@@ -4,12 +4,12 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useNoteStore } from '@/store/useNoteStore';
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import FloatingDock from './FloatingDock';
 import { exportAsMarkdown, exportAsPlainText, exportAsHtml } from '@/lib/exporter';
 import { 
   Bold, Italic, List, ListOrdered, Heading1, Heading2, 
-  Quote, Code, FileText, FileCode, FileDown 
+  Quote, Code, FileText, FileCode, FileDown, Undo2, Redo2 
 } from 'lucide-react';
 
 function EditorToolbar({ editor }: { editor: any }) {
@@ -22,10 +22,10 @@ function EditorToolbar({ editor }: { editor: any }) {
 
   return (
     <div className="flex items-center gap-0.5 px-4 py-1.5 border-b border-zinc-800 bg-[#181b20] flex-wrap">
-      <button onClick={() => editor.chain().focus().toggleBold().run()} className={btnClass(editor.isActive('bold'))} title="Bold">
+      <button onClick={() => editor.chain().focus().toggleBold().run()} className={btnClass(editor.isActive('bold'))} title="Bold (Ctrl+B)">
         <Bold size={15} />
       </button>
-      <button onClick={() => editor.chain().focus().toggleItalic().run()} className={btnClass(editor.isActive('italic'))} title="Italic">
+      <button onClick={() => editor.chain().focus().toggleItalic().run()} className={btnClass(editor.isActive('italic'))} title="Italic (Ctrl+I)">
         <Italic size={15} />
       </button>
       <span className="w-px h-4 bg-zinc-800 mx-1" />
@@ -48,6 +48,13 @@ function EditorToolbar({ editor }: { editor: any }) {
       </button>
       <button onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={btnClass(editor.isActive('codeBlock'))} title="Code block">
         <Code size={15} />
+      </button>
+      <span className="w-px h-4 bg-zinc-800 mx-1" />
+      <button onClick={() => editor.chain().focus().undo().run()} className={btnClass(false)} title="Undo (Ctrl+Z)">
+        <Undo2 size={15} />
+      </button>
+      <button onClick={() => editor.chain().focus().redo().run()} className={btnClass(false)} title="Redo (Ctrl+Y)">
+        <Redo2 size={15} />
       </button>
     </div>
   );
@@ -140,9 +147,9 @@ export default function Editor() {
       <div className="sticky top-0 z-10 backdrop-blur-sm px-6 py-1.5 border-b" style={{ background: 'color-mix(in srgb, var(--bg) 85%, transparent)', borderColor: 'var(--border)' }}>
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-        <div className="text-sm text-zinc-400 font-medium truncate max-w-[280px]">
-          {activeNote?.title || 'Note'}
-        </div>
+            <div className="text-sm text-zinc-400 font-medium truncate max-w-[280px]">
+              {activeNote?.title || 'Note'}
+            </div>
             <div className="relative group">
               <button className="flex items-center gap-1 px-2 py-1 rounded text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors">
                 <FileDown size={13} />
@@ -168,7 +175,7 @@ export default function Editor() {
         </div>
       </div>
 
-      {/* Formatting toolbar */}
+      {/* Formatting toolbar with undo/redo */}
       <EditorToolbar editor={editor} />
 
       {/* Editor content */}
