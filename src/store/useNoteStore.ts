@@ -34,7 +34,7 @@ export const useNoteStore = create<NoteState>()(
       addNote: () => {
         const newNote: Note = {
           id: Date.now().toString(),
-          title: '',
+          title: 'Note',
           content: '',
           tags: [],
           color: 'default',
