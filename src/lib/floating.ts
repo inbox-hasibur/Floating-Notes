@@ -62,11 +62,12 @@ interface FloatingWindowConfig {
 export function openPopupWindow(
   noteId: string,
   noteTitle: string,
-  config: FloatingWindowConfig = { width: 440, height: 400 }
+  config: FloatingWindowConfig = { width: 360, height: 420 }
 ): Window | null {
   const { width, height } = config;
-  const left = config.left ?? Math.round((screen.width - width) / 2);
-  const top = config.top ?? Math.round((screen.height - height) / 2);
+  // Position at bottom-right corner with 20px margin
+  const left = config.left ?? Math.round(screen.width - width - 20);
+  const top = config.top ?? Math.round(screen.height - height - 60);
 
   const features = [
     `width=${width}`, `height=${height}`, `left=${left}`, `top=${top}`,

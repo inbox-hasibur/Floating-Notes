@@ -1,14 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNoteStore } from '@/store/useNoteStore';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { migrateLocalToCloud } from '@/lib/migrate';
 import { useTheme } from 'next-themes';
-import { Plus, LogIn, LogOut, Cloud, Loader2, Sun, Moon, Mail, Lock, UserPlus } from 'lucide-react';
+import { Plus, LogIn, LogOut, Cloud, Loader2, Sun, Moon, Mail, Lock, UserPlus, Pencil } from 'lucide-react';
 
 export default function Sidebar() {
-  const { notes, activeNoteId, addNote, setActiveNoteId, floatingWindowOpen } = useNoteStore();
+  const { notes, activeNoteId, addNote, updateNote, setActiveNoteId, floatingWindowOpen } = useNoteStore();
   const { data: session, status } = useSession();
   const { theme, setTheme } = useTheme();
   const [syncing, setSyncing] = useState(false);
@@ -19,6 +19,39 @@ export default function Sidebar() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingTitleId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingTitleId]);
+
+  const startEditing = (id: string, currentTitle: string) => {
+    setEditingTitleId(id);
+    setEditTitle(currentTitle);
+  };
+
+  const saveTitle = () => {
+    if (editingTitleId && editTitle.trim()) {
+      updateNote(editingTitleId, { title: editTitle.trim() });
+    }
+    setEditingTitleId(null);
+    setEditTitle('');
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveTitle();
+    } else if (e.key === 'Escape') {
+      setEditingTitleId(null);
+      setEditTitle('');
+    }
+  };
 
   const handleSync = async () => {
     setSyncing(true);
@@ -48,7 +81,6 @@ export default function Sidebar() {
         setError(data.error || 'Registration failed');
         return;
       }
-      // Auto login after register
       await signIn('credentials', { email, password, redirect: false });
     } else {
       const res = await signIn('credentials', { email, password, redirect: false });
@@ -108,17 +140,43 @@ export default function Sidebar() {
           <ul className="space-y-0.5">
             {notes.map((note) => (
               <li key={note.id}>
-                <button onClick={() => setActiveNoteId(note.id)}
-                  className="w-full text-left px-2.5 py-1.5 rounded text-sm truncate flex items-center gap-1.5 transition-colors"
+                <button onClick={() => { if (editingTitleId !== note.id) setActiveNoteId(note.id); }}
+                  className="w-full text-left px-2.5 py-1.5 rounded text-sm flex items-center gap-1.5 transition-colors group"
                   style={{
                     background: activeNoteId === note.id ? 'var(--bg-card)' : 'transparent',
                     color: activeNoteId === note.id ? 'var(--text)' : 'var(--text-muted)',
                   }}
                   onMouseEnter={(e) => { if (activeNoteId !== note.id) e.currentTarget.style.background = 'var(--bg-alt)'; }}
                   onMouseLeave={(e) => { if (activeNoteId !== note.id) e.currentTarget.style.background = 'transparent'; }}>
-                  <span className="flex-1 truncate">{note.title || 'Untitled'}</span>
+                  {editingTitleId === note.id ? (
+                    <input
+                      ref={editInputRef}
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      onBlur={saveTitle}
+                      onKeyDown={handleTitleKeyDown}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1 bg-transparent text-xs outline-none border-b border-blue-500 px-0 py-0"
+                      style={{ color: 'var(--text)' }}
+                    />
+                  ) : (
+                    <span className="flex-1 truncate text-left">{note.title || 'Note'}</span>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEditing(note.id, note.title || 'Note');
+                    }}
+                    className="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                    style={{ color: 'var(--text-muted)' }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                  >
+                    <Pencil size={10} />
+                  </button>
                   {floatingWindowOpen && activeNoteId === note.id && (
-                    <span style={{ color: '#3b82f6', fontSize: 10 }}>↗</span>
+                    <span style={{ color: '#3b82f6', fontSize: 10, flexShrink: 0 }}>↗</span>
                   )}
                 </button>
               </li>

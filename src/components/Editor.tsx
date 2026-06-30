@@ -76,7 +76,7 @@ export default function Editor() {
 
       const html = editor.getHTML();
       const text = editor.getText();
-      const firstLine = text.split('\n')[0] || 'Untitled Note';
+      const firstLine = text.split('\n')[0] || 'Note';
 
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       
@@ -140,9 +140,9 @@ export default function Editor() {
       <div className="sticky top-0 z-10 backdrop-blur-sm px-6 py-1.5 border-b" style={{ background: 'color-mix(in srgb, var(--bg) 85%, transparent)', borderColor: 'var(--border)' }}>
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="text-sm text-zinc-400 font-medium truncate max-w-[280px]">
-              {activeNote?.title || 'Untitled Note'}
-            </div>
+        <div className="text-sm text-zinc-400 font-medium truncate max-w-[280px]">
+          {activeNote?.title || 'Note'}
+        </div>
             <div className="relative group">
               <button className="flex items-center gap-1 px-2 py-1 rounded text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors">
                 <FileDown size={13} />
