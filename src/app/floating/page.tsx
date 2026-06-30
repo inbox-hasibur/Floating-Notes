@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-// Mini floating modes: 'collapsed' = just title bar, 'expanded' = show content
 type FloatMode = 'collapsed' | 'expanded';
 
 export default function FloatingPage() {
@@ -13,13 +12,11 @@ export default function FloatingPage() {
   const [noteTitle, setNoteTitle] = useState('Note');
   const [mode, setMode] = useState<FloatMode>('collapsed');
 
-  // Toggle between collapsed (title only) and expanded (full note)
   const toggleMode = useCallback(() => {
     setMode(prev => prev === 'collapsed' ? 'expanded' : 'collapsed');
   }, []);
 
-  // Sync content from localStorage to this window
-  const syncContent = useCallback(() => {
+  const loadContent = useCallback(() => {
     if (!noteIdRef.current || !contentRef.current) return;
     const stored = localStorage.getItem('floating-notes-storage');
     if (!stored) return;
@@ -27,7 +24,7 @@ export default function FloatingPage() {
       const parsed = JSON.parse(stored);
       const note = parsed?.state?.notes?.find((n: any) => n.id === noteIdRef.current);
       if (note) {
-        if (note.content && contentRef.current.innerHTML !== note.content) {
+        if (note.content) {
           contentRef.current.innerHTML = note.content;
         }
         if (note.title) setNoteTitle(note.title);
@@ -35,8 +32,7 @@ export default function FloatingPage() {
     } catch {}
   }, []);
 
-  // Save content changes to localStorage
-  const handleInput = useCallback(() => {
+  const saveContent = useCallback(() => {
     if (!noteIdRef.current || !contentRef.current) return;
     const html = contentRef.current.innerHTML;
     const stored = localStorage.getItem('floating-notes-storage');
@@ -56,20 +52,28 @@ export default function FloatingPage() {
   }, []);
 
   useEffect(() => {
+    // Get noteId from URL
     const params = new URLSearchParams(window.location.search);
     const noteId = params.get('noteId');
     noteIdRef.current = noteId;
 
-    // Load initial content
-    syncContent();
+    // Load initial content after a small delay for the DOM to be ready
+    setTimeout(loadContent, 100);
 
-    // Always-on-top: periodically focus
+    // Focus immediately to be on top
+    window.focus();
+
+    // Always-on-top: aggressively keep focus
     alwaysOnTopRef.current = setInterval(() => {
-      try { if (window && !window.closed) window.focus(); } catch {}
-    }, 3000);
+      try {
+        if (window && !window.closed) {
+          window.focus();
+        }
+      } catch {}
+    }, 1500);
 
-    // Poll for external changes
-    syncRef.current = setInterval(syncContent, 800);
+    // Sync from localStorage
+    syncRef.current = setInterval(loadContent, 600);
 
     return () => { 
       if (syncRef.current) clearInterval(syncRef.current);
@@ -89,12 +93,11 @@ export default function FloatingPage() {
         background: '#15181c',
         color: '#d4d4d8',
         cursor: 'default',
-        borderRadius: mode === 'expanded' ? 0 : 0,
         overflow: 'hidden',
         userSelect: 'none',
       }}
     >
-      {/* === TOP BAR - always visible === */}
+      {/* TOP BAR - fills entire window when collapsed */}
       <div
         style={{
           height: mode === 'collapsed' ? '100%' : 32,
@@ -106,10 +109,9 @@ export default function FloatingPage() {
           borderBottom: mode === 'expanded' ? '1px solid #27272a' : 'none',
           flexShrink: 0,
           cursor: 'pointer',
-          transition: 'all 0.2s ease',
+          transition: 'height 0.15s ease',
         }}
       >
-        {/* Left: status */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
           <span style={{ fontSize: 11, color: '#3b82f6', flexShrink: 0 }}>📌</span>
           <span style={{
@@ -118,17 +120,12 @@ export default function FloatingPage() {
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            maxWidth: mode === 'collapsed' ? 200 : 150,
+            maxWidth: mode === 'collapsed' ? 230 : 160,
           }}>
-            {mode === 'collapsed' ? (noteTitle || 'Note') : noteTitle}
+            {noteTitle || 'Note'}
           </span>
         </div>
-
-        {/* Right: controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {mode === 'expanded' && (
-            <span style={{ fontSize: 9, color: '#52525b' }}>TAP TO COLLAPSE</span>
-          )}
           <button
             onClick={(e) => { e.stopPropagation(); window.close(); }}
             style={{
@@ -142,18 +139,18 @@ export default function FloatingPage() {
         </div>
       </div>
 
-      {/* === CONTENT - only when expanded === */}
+      {/* CONTENT - only when expanded */}
       {mode === 'expanded' && (
         <div
           ref={contentRef}
           contentEditable
           suppressContentEditableWarning
-          onInput={handleInput}
+          onInput={saveContent}
           onClick={(e) => e.stopPropagation()}
           data-placeholder="Write..."
           style={{
             flex: 1,
-            padding: '14px 16px',
+            padding: '12px 14px',
             overflowY: 'auto',
             fontSize: 13,
             lineHeight: 1.5,
@@ -162,14 +159,11 @@ export default function FloatingPage() {
             cursor: 'text',
             userSelect: 'text',
           }}
-          // Styles for content
-          dangerouslySetInnerHTML={{ __html: '' }}
         />
       )}
 
-      {/* Inline styles for the editor content */}
-      <style dangerouslySetInnerHTML={{__html: `
-        [contenteditable]:empty::before {
+      <style>{`
+        [contenteditable]:empty:before {
           content: attr(data-placeholder);
           color: #52525b;
           pointer-events: none;
@@ -183,7 +177,7 @@ export default function FloatingPage() {
         [contenteditable] blockquote { border-left: 2px solid #3b82f6; padding-left: 8px; color: #a1a1aa; margin: 4px 0; }
         ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 2px; }
-      `}} />
+      `}</style>
     </div>
   );
 }
