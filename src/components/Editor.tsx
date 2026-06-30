@@ -82,15 +82,12 @@ export default function Editor() {
       if (!activeNoteId) return;
 
       const html = editor.getHTML();
-      const text = editor.getText();
-      const firstLine = text.split('\n')[0] || 'Note';
 
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       
       debounceTimerRef.current = setTimeout(() => {
         updateNote(activeNoteId, {
           content: html,
-          title: firstLine.substring(0, 50),
         });
       }, 1000);
     },

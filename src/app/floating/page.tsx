@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Bold, Italic, List, ListOrdered, Heading1, Heading2, Quote, Code } from 'lucide-react';
+import { Bold, Italic, List, ListOrdered, Heading1, Heading2, Quote, Code, Undo2, Redo2 } from 'lucide-react';
 
 function FloatingToolbar({ editor }: { editor: any }) {
   if (!editor) return null;
@@ -43,6 +43,13 @@ function FloatingToolbar({ editor }: { editor: any }) {
       <button onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={btnClass(editor.isActive('codeBlock'))} title="Code block">
         <Code size={13} />
       </button>
+      <span className="w-px h-3 bg-zinc-800 mx-0.5" />
+      <button onClick={() => editor.chain().focus().undo().run()} className={btnClass(false)} title="Undo">
+        <Undo2 size={13} />
+      </button>
+      <button onClick={() => editor.chain().focus().redo().run()} className={btnClass(false)} title="Redo">
+        <Redo2 size={13} />
+      </button>
     </div>
   );
 }
@@ -50,6 +57,7 @@ function FloatingToolbar({ editor }: { editor: any }) {
 export default function FloatingPage() {
   const noteIdRef = useRef<string | null>(null);
   const syncRef = useRef<NodeJS.Timeout | null>(null);
+  const alwaysOnTopRef = useRef<NodeJS.Timeout | null>(null);
   const [noteTitle, setNoteTitle] = useState('Note');
 
   const editor = useEditor({
@@ -68,10 +76,8 @@ export default function FloatingPage() {
     onUpdate: ({ editor }) => {
       if (!noteIdRef.current) return;
       const html = editor.getHTML();
-      const text = editor.getText();
-      const firstLine = text.split('\n')[0]?.substring(0, 50) || 'Note';
 
-      // Save to localStorage immediately
+      // Save to localStorage immediately (content only, NOT title)
       const stored = localStorage.getItem('floating-notes-storage');
       if (stored) {
         try {
@@ -81,10 +87,8 @@ export default function FloatingPage() {
             const idx = state.notes?.findIndex((n: any) => n.id === noteIdRef.current);
             if (idx !== -1) {
               state.notes[idx].content = html;
-              state.notes[idx].title = firstLine;
               state.notes[idx].updatedAt = Date.now();
               localStorage.setItem('floating-notes-storage', JSON.stringify(parsed));
-              setNoteTitle(firstLine);
             }
           }
         } catch {}
@@ -112,6 +116,15 @@ export default function FloatingPage() {
       } catch {}
     }
 
+    // Always-on-top: periodically focus the window to stay above others
+    alwaysOnTopRef.current = setInterval(() => {
+      try {
+        if (window && !window.closed) {
+          window.focus();
+        }
+      } catch {}
+    }, 2000);
+
     // Poll for external changes (from main editor)
     syncRef.current = setInterval(() => {
       if (!noteId || !editor) return;
@@ -125,13 +138,18 @@ export default function FloatingPage() {
             if (!isEditorFocused) {
               editor.commands.setContent(note.content);
             }
-            if (note.title) setNoteTitle(note.title);
+          }
+          if (note?.title && note.title !== noteTitle) {
+            setNoteTitle(note.title);
           }
         } catch {}
       }
     }, 500);
 
-    return () => { if (syncRef.current) clearInterval(syncRef.current); };
+    return () => { 
+      if (syncRef.current) clearInterval(syncRef.current);
+      if (alwaysOnTopRef.current) clearInterval(alwaysOnTopRef.current);
+    };
   }, [editor]);
 
   return (
