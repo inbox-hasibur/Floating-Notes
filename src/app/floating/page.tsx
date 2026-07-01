@@ -7,10 +7,10 @@ type FloatMode = 'collapsed' | 'expanded';
 export default function FloatingPage() {
   const noteIdRef = useRef<string | null>(null);
   const syncRef = useRef<NodeJS.Timeout | null>(null);
-  const alwaysOnTopRef = useRef<NodeJS.Timeout | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [noteTitle, setNoteTitle] = useState('Note');
   const [mode, setMode] = useState<FloatMode>('collapsed');
+  const [isPinned, setIsPinned] = useState(false);
 
   const toggleMode = useCallback(() => {
     setMode(prev => prev === 'collapsed' ? 'expanded' : 'collapsed');
@@ -24,7 +24,7 @@ export default function FloatingPage() {
       const parsed = JSON.parse(stored);
       const note = parsed?.state?.notes?.find((n: any) => n.id === noteIdRef.current);
       if (note) {
-        if (note.content) {
+        if (note.content && contentRef.current.innerHTML !== note.content) {
           contentRef.current.innerHTML = note.content;
         }
         if (note.title) setNoteTitle(note.title);
@@ -51,6 +51,11 @@ export default function FloatingPage() {
     } catch {}
   }, []);
 
+  const togglePin = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsPinned(prev => !prev);
+  }, []);
+
   useEffect(() => {
     // Get noteId from URL
     const params = new URLSearchParams(window.location.search);
@@ -60,24 +65,11 @@ export default function FloatingPage() {
     // Load initial content after a small delay for the DOM to be ready
     setTimeout(loadContent, 100);
 
-    // Focus immediately to be on top
-    window.focus();
-
-    // Always-on-top: aggressively keep focus
-    alwaysOnTopRef.current = setInterval(() => {
-      try {
-        if (window && !window.closed) {
-          window.focus();
-        }
-      } catch {}
-    }, 1500);
-
     // Sync from localStorage
     syncRef.current = setInterval(loadContent, 600);
 
     return () => { 
       if (syncRef.current) clearInterval(syncRef.current);
-      if (alwaysOnTopRef.current) clearInterval(alwaysOnTopRef.current);
     };
   }, []);
 
@@ -113,7 +105,17 @@ export default function FloatingPage() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-          <span style={{ fontSize: 11, color: '#3b82f6', flexShrink: 0 }}>📌</span>
+          <span
+            onClick={togglePin}
+            style={{
+              fontSize: 11,
+              color: isPinned ? '#3b82f6' : '#52525b',
+              flexShrink: 0,
+              cursor: 'pointer',
+              transition: 'color 0.15s ease',
+            }}
+            title={isPinned ? 'Unpin window' : 'Pin window on top'}
+          >📌</span>
           <span style={{
             fontSize: 12,
             color: '#a1a1aa',
