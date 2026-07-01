@@ -44,7 +44,7 @@ export default function FloatingPage() {
   const syncRef = useRef<NodeJS.Timeout | null>(null);
   const pinRef = useRef<NodeJS.Timeout | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const isPinnedRef = useRef(true);
+  const rafRef = useRef<number | null>(null);
   const [noteTitle, setNoteTitle] = useState('Note');
   const [mode, setMode] = useState<FloatMode>('expanded');
   const [isPinned, setIsPinned] = useState(true);
@@ -113,70 +113,49 @@ export default function FloatingPage() {
     e.stopPropagation();
     setIsPinned(prev => {
       const next = !prev;
-      isPinnedRef.current = next;
-      // Immediately focus or release
+      // Immediately focus when pinning
       if (next) {
-        try { window.focus(); } catch {}
+        // Delay slightly to allow state to settle
+        setTimeout(() => { try { window.focus(); } catch {} }, 50);
       }
       return next;
     });
   }, []);
 
-  // Reliable always-on-top: multiple strategies combined
+  // Always on top using only reliable interval + visibility change
   useEffect(() => {
-    isPinnedRef.current = isPinned;
-
-    // Strategy 1: Blur event - re-focus immediately when window loses focus
-    const handleBlur = () => {
-      if (isPinnedRef.current) {
-        // Use requestAnimationFrame to ensure we're in a valid reflow context
-        requestAnimationFrame(() => {
-          try {
-            if (window && !window.closed) {
-              window.focus();
-            }
-          } catch {}
-        });
-      }
-    };
-    window.addEventListener('blur', handleBlur);
-
-    // Strategy 2: Visibility change - re-focus when tab becomes active
-    const handleVisibility = () => {
-      if (isPinnedRef.current && document.visibilityState === 'visible') {
-        try { window.focus(); } catch {}
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    // Strategy 3: Mouse enter - focusing on hover interaction
-    const handleMouseEnter = () => {
-      if (isPinnedRef.current) {
-        try { window.focus(); } catch {}
-      }
-    };
-    window.addEventListener('mouseenter', handleMouseEnter);
-
-    // Strategy 4: Interval fallback - keep trying every 400ms
     if (isPinned) {
+      // Immediate focus
+      try { window.focus(); } catch {}
+
+      // Fast interval: constantly try to stay on top (every 300ms)
       pinRef.current = setInterval(() => {
         try {
           if (window && !window.closed) {
             window.focus();
           }
         } catch {}
-      }, 400);
-    }
+      }, 300);
 
-    return () => {
-      window.removeEventListener('blur', handleBlur);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('mouseenter', handleMouseEnter);
+      // Visibility change: re-focus when window becomes visible
+      const handleVisibility = () => {
+        if (document.visibilityState === 'visible') {
+          setTimeout(() => { try { window.focus(); } catch {} }, 50);
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibility);
+
+      return () => {
+        if (pinRef.current) clearInterval(pinRef.current);
+        document.removeEventListener('visibilitychange', handleVisibility);
+      };
+    } else {
+      // Not pinned: stop all focus stealing
       if (pinRef.current) {
         clearInterval(pinRef.current);
         pinRef.current = null;
       }
-    };
+    }
   }, [isPinned]);
 
   useEffect(() => {
@@ -185,7 +164,7 @@ export default function FloatingPage() {
     noteIdRef.current = noteId;
 
     // Focus immediately on load
-    window.focus();
+    try { window.focus(); } catch {}
 
     // Load content once editor is ready
     const checkEditor = setInterval(() => {
@@ -198,11 +177,9 @@ export default function FloatingPage() {
     // Sync from localStorage
     syncRef.current = setInterval(loadFromStorage, 800);
 
-    // Hide URL bar by changing document title and using history API
+    // Hide URL bar
     document.title = 'FloatNote';
-    try {
-      window.history.replaceState(null, '', '/float');
-    } catch {}
+    try { window.history.replaceState(null, '', '/float'); } catch {}
 
     return () => {
       if (syncRef.current) clearInterval(syncRef.current);
