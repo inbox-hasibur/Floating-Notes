@@ -39,15 +39,39 @@ function FloatingToolbar({ editor }: { editor: any }) {
   );
 }
 
+// Get note content from localStorage by noteId
+function getNoteFromStorage(noteId: string): { title?: string; content?: string } | null {
+  try {
+    const stored = localStorage.getItem('floating-notes-storage');
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    const note = parsed?.state?.notes?.find((n: any) => n.id === noteId);
+    if (!note) return null;
+    return { title: note.title, content: note.content };
+  } catch {
+    return null;
+  }
+}
+
 export default function FloatingPage() {
   const noteIdRef = useRef<string | null>(null);
   const syncRef = useRef<NodeJS.Timeout | null>(null);
   const pinRef = useRef<NodeJS.Timeout | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const rafRef = useRef<number | null>(null);
   const [noteTitle, setNoteTitle] = useState('Note');
   const [mode, setMode] = useState<FloatMode>('expanded');
   const [isPinned, setIsPinned] = useState(true);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Read noteId from URL immediately (synchronous)
+  let initialNoteId = '';
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    initialNoteId = params.get('noteId') || '';
+  }
+
+  // Try to load note from localStorage immediately
+  const initialNote = initialNoteId ? getNoteFromStorage(initialNoteId) : null;
 
   const editor = useEditor({
     extensions: [
@@ -57,7 +81,7 @@ export default function FloatingPage() {
       Placeholder.configure({ placeholder: 'Write...' }),
       Underline,
     ],
-    content: '',
+    content: initialNote?.content || '',
     editorProps: {
       attributes: {
         class: 'prose prose-invert prose-xs focus:outline-none max-w-none',
@@ -67,35 +91,45 @@ export default function FloatingPage() {
       if (!noteIdRef.current) return;
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        saveToStorage(editor.getHTML());
+        saveContentToStorage(editor.getHTML());
       }, 500);
     },
   });
 
-  const loadFromStorage = useCallback(() => {
-    if (!noteIdRef.current) return;
-    const stored = localStorage.getItem('floating-notes-storage');
-    if (!stored) return;
-    try {
-      const parsed = JSON.parse(stored);
-      const note = parsed?.state?.notes?.find((n: any) => n.id === noteIdRef.current);
-      if (note) {
-        if (note.title) setNoteTitle(note.title);
-        if (note.content && editor && editor.getHTML() !== note.content) {
-          const isFocused = window.document.activeElement?.closest('.ProseMirror');
-          if (!isFocused) {
-            editor.commands.setContent(note.content);
-          }
+  // Set title from initial data
+  useEffect(() => {
+    if (initialNote?.title) {
+      setNoteTitle(initialNote.title);
+    }
+  }, []);
+
+  const syncFromStorage = useCallback(() => {
+    if (!noteIdRef.current || !editor) return;
+    const data = getNoteFromStorage(noteIdRef.current);
+    if (!data) return;
+
+    // Update title
+    if (data.title) setNoteTitle(data.title);
+
+    // Update content only if user isn't actively editing
+    if (data.content) {
+      const isFocused = window.document.activeElement?.closest('.ProseMirror');
+      if (!isFocused) {
+        const currentHtml = editor.getHTML();
+        if (currentHtml !== data.content) {
+          editor.commands.setContent(data.content);
         }
       }
-    } catch {}
-  }, [editor]);
+    }
 
-  const saveToStorage = useCallback((html: string) => {
+    if (!isLoaded) setIsLoaded(true);
+  }, [editor, isLoaded]);
+
+  const saveContentToStorage = useCallback((html: string) => {
     if (!noteIdRef.current) return;
-    const stored = localStorage.getItem('floating-notes-storage');
-    if (!stored) return;
     try {
+      const stored = localStorage.getItem('floating-notes-storage');
+      if (!stored) return;
       const parsed = JSON.parse(stored);
       const state = parsed?.state;
       if (state) {
@@ -113,77 +147,68 @@ export default function FloatingPage() {
     e.stopPropagation();
     setIsPinned(prev => {
       const next = !prev;
-      // Immediately focus when pinning
       if (next) {
-        // Delay slightly to allow state to settle
         setTimeout(() => { try { window.focus(); } catch {} }, 50);
       }
       return next;
     });
   }, []);
 
-  // Always on top using only reliable interval + visibility change
+  // Always on top
   useEffect(() => {
     if (isPinned) {
-      // Immediate focus
       try { window.focus(); } catch {}
-
-      // Fast interval: constantly try to stay on top (every 300ms)
       pinRef.current = setInterval(() => {
-        try {
-          if (window && !window.closed) {
-            window.focus();
-          }
-        } catch {}
+        try { if (window && !window.closed) window.focus(); } catch {}
       }, 300);
-
-      // Visibility change: re-focus when window becomes visible
       const handleVisibility = () => {
         if (document.visibilityState === 'visible') {
           setTimeout(() => { try { window.focus(); } catch {} }, 50);
         }
       };
       document.addEventListener('visibilitychange', handleVisibility);
-
       return () => {
         if (pinRef.current) clearInterval(pinRef.current);
         document.removeEventListener('visibilitychange', handleVisibility);
       };
     } else {
-      // Not pinned: stop all focus stealing
-      if (pinRef.current) {
-        clearInterval(pinRef.current);
-        pinRef.current = null;
-      }
+      if (pinRef.current) { clearInterval(pinRef.current); pinRef.current = null; }
     }
   }, [isPinned]);
 
+  // Main initialization
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const noteId = params.get('noteId');
     noteIdRef.current = noteId;
 
-    // Focus immediately on load
     try { window.focus(); } catch {}
-
-    // Load content once editor is ready
-    const checkEditor = setInterval(() => {
-      if (editor) {
-        clearInterval(checkEditor);
-        loadFromStorage();
-      }
-    }, 50);
-
-    // Sync from localStorage
-    syncRef.current = setInterval(loadFromStorage, 800);
-
-    // Hide URL bar
     document.title = 'FloatNote';
     try { window.history.replaceState(null, '', '/float'); } catch {}
 
+    // Sync immediately once editor is ready, then poll
+    const checkReady = setInterval(() => {
+      if (editor) {
+        clearInterval(checkReady);
+        syncFromStorage();
+      }
+    }, 30);
+
+    // Sync from storage every 800ms
+    syncRef.current = setInterval(syncFromStorage, 800);
+
+    // Listen for storage changes from other windows
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'floating-notes-storage') {
+        syncFromStorage();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
     return () => {
       if (syncRef.current) clearInterval(syncRef.current);
-      clearInterval(checkEditor);
+      clearInterval(checkReady);
+      window.removeEventListener('storage', handleStorage);
     };
   }, [editor]);
 
@@ -205,7 +230,7 @@ export default function FloatingPage() {
         userSelect: 'none',
       }}
     >
-      {/* Title bar - always visible, compact */}
+      {/* Title bar */}
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
