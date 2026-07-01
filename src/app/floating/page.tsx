@@ -7,6 +7,7 @@ type FloatMode = 'collapsed' | 'expanded';
 export default function FloatingPage() {
   const noteIdRef = useRef<string | null>(null);
   const syncRef = useRef<NodeJS.Timeout | null>(null);
+  const pinRef = useRef<NodeJS.Timeout | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [noteTitle, setNoteTitle] = useState('Note');
   const [mode, setMode] = useState<FloatMode>('collapsed');
@@ -55,6 +56,34 @@ export default function FloatingPage() {
     e.stopPropagation();
     setIsPinned(prev => !prev);
   }, []);
+
+  // Pin effect: aggressively keep on top only when pinned
+  useEffect(() => {
+    if (isPinned) {
+      // Immediately focus when pinning
+      window.focus();
+      // Keep refocusing every 800ms to stay on top
+      pinRef.current = setInterval(() => {
+        try {
+          if (window && !window.closed) {
+            window.focus();
+          }
+        } catch {}
+      }, 800);
+    } else {
+      // Stop stealing focus when unpinned
+      if (pinRef.current) {
+        clearInterval(pinRef.current);
+        pinRef.current = null;
+      }
+    }
+    return () => {
+      if (pinRef.current) {
+        clearInterval(pinRef.current);
+        pinRef.current = null;
+      }
+    };
+  }, [isPinned]);
 
   useEffect(() => {
     // Get noteId from URL
@@ -126,6 +155,9 @@ export default function FloatingPage() {
           }}>
             {noteTitle || 'Note'}
           </span>
+          {isPinned && (
+            <span style={{ fontSize: 10, color: '#3b82f6', flexShrink: 0 }}>●</span>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button
