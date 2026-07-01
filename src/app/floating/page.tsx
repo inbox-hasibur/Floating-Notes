@@ -1,41 +1,97 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
+import Underline from '@tiptap/extension-underline';
 
 type FloatMode = 'collapsed' | 'expanded';
+
+function FloatingToolbar({ editor }: { editor: any }) {
+  if (!editor) return null;
+
+  const btnClass = (active: boolean) => {
+    const base = 'p-1 leading-none rounded transition-colors cursor-pointer border-0 text-xs ';
+    return base + (active
+      ? 'bg-zinc-700 text-white'
+      : 'bg-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800');
+  };
+
+  return (
+    <div className="flex items-center gap-0.5 px-2 py-1 border-b border-zinc-800 bg-[#181b20] overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+      <button onClick={() => editor.chain().focus().toggleBold().run()} className={btnClass(editor.isActive('bold'))} title="Bold"><strong>B</strong></button>
+      <button onClick={() => editor.chain().focus().toggleItalic().run()} className={btnClass(editor.isActive('italic'))} title="Italic"><em>I</em></button>
+      <button onClick={() => editor.chain().focus().toggleUnderline().run()} className={btnClass(editor.isActive('underline'))} title="Underline"><u>U</u></button>
+      <span className="w-px h-3 bg-zinc-800 mx-0.5" />
+      <button onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={btnClass(editor.isActive('heading', { level: 1 }))} title="Heading 1">H1</button>
+      <button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={btnClass(editor.isActive('heading', { level: 2 }))} title="Heading 2">H2</button>
+      <span className="w-px h-3 bg-zinc-800 mx-0.5" />
+      <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={btnClass(editor.isActive('bulletList'))} title="Bullet list">≡</button>
+      <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={btnClass(editor.isActive('orderedList'))} title="Ordered list">#</button>
+      <span className="w-px h-3 bg-zinc-800 mx-0.5" />
+      <button onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btnClass(editor.isActive('blockquote'))} title="Quote">"</button>
+      <button onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={btnClass(editor.isActive('codeBlock'))} title="Code">{'<>'}</button>
+      <span className="w-px h-3 bg-zinc-800 mx-0.5" />
+      <button onClick={() => editor.chain().focus().undo().run()} className={btnClass(false)} title="Undo">↩</button>
+      <button onClick={() => editor.chain().focus().redo().run()} className={btnClass(false)} title="Redo">↪</button>
+    </div>
+  );
+}
 
 export default function FloatingPage() {
   const noteIdRef = useRef<string | null>(null);
   const syncRef = useRef<NodeJS.Timeout | null>(null);
   const pinRef = useRef<NodeJS.Timeout | null>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const [noteTitle, setNoteTitle] = useState('Note');
-  const [mode, setMode] = useState<FloatMode>('collapsed');
-  const [isPinned, setIsPinned] = useState(false);
+  const [mode, setMode] = useState<FloatMode>('expanded');
+  const [isPinned, setIsPinned] = useState(true); // Default pinned = true for PiP behavior
 
-  const toggleMode = useCallback(() => {
-    setMode(prev => prev === 'collapsed' ? 'expanded' : 'collapsed');
-  }, []);
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2] },
+      }),
+      Placeholder.configure({ placeholder: 'Write...' }),
+      Underline,
+    ],
+    content: '',
+    editorProps: {
+      attributes: {
+        class: 'prose prose-invert prose-xs focus:outline-none max-w-none',
+      },
+    },
+    onUpdate: ({ editor }) => {
+      if (!noteIdRef.current) return;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        saveToStorage(editor.getHTML());
+      }, 500);
+    },
+  });
 
-  const loadContent = useCallback(() => {
-    if (!noteIdRef.current || !contentRef.current) return;
+  const loadFromStorage = useCallback(() => {
+    if (!noteIdRef.current) return;
     const stored = localStorage.getItem('floating-notes-storage');
     if (!stored) return;
     try {
       const parsed = JSON.parse(stored);
       const note = parsed?.state?.notes?.find((n: any) => n.id === noteIdRef.current);
       if (note) {
-        if (note.content && contentRef.current.innerHTML !== note.content) {
-          contentRef.current.innerHTML = note.content;
-        }
         if (note.title) setNoteTitle(note.title);
+        if (note.content && editor && editor.getHTML() !== note.content) {
+          const isFocused = window.document.activeElement?.closest('.ProseMirror');
+          if (!isFocused) {
+            editor.commands.setContent(note.content);
+          }
+        }
       }
     } catch {}
-  }, []);
+  }, [editor]);
 
-  const saveContent = useCallback(() => {
-    if (!noteIdRef.current || !contentRef.current) return;
-    const html = contentRef.current.innerHTML;
+  const saveToStorage = useCallback((html: string) => {
+    if (!noteIdRef.current) return;
     const stored = localStorage.getItem('floating-notes-storage');
     if (!stored) return;
     try {
@@ -60,51 +116,50 @@ export default function FloatingPage() {
   // Pin effect: aggressively keep on top only when pinned
   useEffect(() => {
     if (isPinned) {
-      // Immediately focus when pinning
       window.focus();
-      // Keep refocusing every 800ms to stay on top
       pinRef.current = setInterval(() => {
         try {
-          if (window && !window.closed) {
-            window.focus();
-          }
+          if (window && !window.closed) window.focus();
         } catch {}
       }, 800);
     } else {
-      // Stop stealing focus when unpinned
-      if (pinRef.current) {
-        clearInterval(pinRef.current);
-        pinRef.current = null;
-      }
+      if (pinRef.current) { clearInterval(pinRef.current); pinRef.current = null; }
     }
     return () => {
-      if (pinRef.current) {
-        clearInterval(pinRef.current);
-        pinRef.current = null;
-      }
+      if (pinRef.current) { clearInterval(pinRef.current); pinRef.current = null; }
     };
   }, [isPinned]);
 
   useEffect(() => {
-    // Get noteId from URL
     const params = new URLSearchParams(window.location.search);
     const noteId = params.get('noteId');
     noteIdRef.current = noteId;
 
-    // Load initial content after a small delay for the DOM to be ready
-    setTimeout(loadContent, 100);
+    // Load initial content once editor is ready
+    const checkEditor = setInterval(() => {
+      if (editor) {
+        clearInterval(checkEditor);
+        loadFromStorage();
+      }
+    }, 50);
 
     // Sync from localStorage
-    syncRef.current = setInterval(loadContent, 600);
+    syncRef.current = setInterval(loadFromStorage, 800);
 
-    return () => { 
+    // Hide the URL in the popup by changing the document title
+    document.title = 'FloatNote';
+
+    return () => {
       if (syncRef.current) clearInterval(syncRef.current);
+      clearInterval(checkEditor);
     };
-  }, []);
+  }, [editor]);
 
   return (
     <div
-      onClick={toggleMode}
+      onClick={() => {
+        if (mode === 'collapsed') setMode('expanded');
+      }}
       style={{
         height: '100vh',
         width: '100vw',
@@ -118,53 +173,54 @@ export default function FloatingPage() {
         userSelect: 'none',
       }}
     >
-      {/* TOP BAR - fills entire window when collapsed */}
+      {/* Title bar - always visible, compact */}
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
-          height: mode === 'collapsed' ? '100%' : 32,
+          height: 30,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 10px',
+          padding: '0 8px',
           background: '#1e2329',
-          borderBottom: mode === 'expanded' ? '1px solid #27272a' : 'none',
+          borderBottom: '1px solid #27272a',
           flexShrink: 0,
-          cursor: 'pointer',
-          transition: 'height 0.15s ease',
+          cursor: 'default',
+          userSelect: 'none',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden', flex: 1 }}>
           <span
             onClick={togglePin}
             style={{
-              fontSize: 11,
+              fontSize: 10,
               color: isPinned ? '#3b82f6' : '#52525b',
               flexShrink: 0,
               cursor: 'pointer',
               transition: 'color 0.15s ease',
+              lineHeight: 1,
             }}
-            title={isPinned ? 'Unpin window' : 'Pin window on top'}
+            title={isPinned ? 'Unpin (allow focus to leave)' : 'Pin (keep on top)'}
           >📌</span>
           <span style={{
-            fontSize: 12,
+            fontSize: 11,
             color: '#a1a1aa',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            maxWidth: mode === 'collapsed' ? 230 : 160,
+            flex: 1,
+            minWidth: 0,
           }}>
             {noteTitle || 'Note'}
           </span>
-          {isPinned && (
-            <span style={{ fontSize: 10, color: '#3b82f6', flexShrink: 0 }}>●</span>
-          )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+          <span style={{ fontSize: 9, color: '#3b82f6', padding: '0 4px' }}>PiP</span>
           <button
             onClick={(e) => { e.stopPropagation(); window.close(); }}
             style={{
               background: 'none', border: 'none', color: '#52525b', cursor: 'pointer',
-              padding: '2px 6px', borderRadius: 3, fontSize: 12, lineHeight: 1,
+              padding: '1px 5px', borderRadius: 2, fontSize: 11, lineHeight: 1,
               transition: 'all 0.12s ease',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.background = '#27272a'; e.currentTarget.style.color = '#e4e4e7'; }}
@@ -173,43 +229,49 @@ export default function FloatingPage() {
         </div>
       </div>
 
-      {/* CONTENT - only when expanded */}
-      {mode === 'expanded' && (
-        <div
-          ref={contentRef}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={saveContent}
-          onClick={(e) => e.stopPropagation()}
-          data-placeholder="Write..."
-          style={{
-            flex: 1,
-            padding: '12px 14px',
-            overflowY: 'auto',
-            fontSize: 13,
-            lineHeight: 1.5,
-            color: '#d4d4d8',
-            outline: 'none',
-            cursor: 'text',
-            userSelect: 'text',
-          }}
-        />
-      )}
+      {/* Toolbar */}
+      <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
+        <FloatingToolbar editor={editor} />
+      </div>
+
+      {/* Editor content */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '8px 10px',
+          cursor: 'text',
+          userSelect: 'text',
+        }}
+      >
+        <EditorContent editor={editor} />
+      </div>
 
       <style>{`
-        [contenteditable]:empty:before {
+        .ProseMirror {
+          outline: none;
+          min-height: 60px;
+          font-size: 12.5px;
+          line-height: 1.5;
+          color: #d4d4d8;
+        }
+        .ProseMirror p { margin: 0 0 2px; }
+        .ProseMirror h1 { font-size: 1.15em; font-weight: 600; margin: 6px 0 2px; color: #f4f4f5; }
+        .ProseMirror h2 { font-size: 1.05em; font-weight: 600; margin: 4px 0 2px; color: #f4f4f5; }
+        .ProseMirror ul, .ProseMirror ol { padding-left: 16px; margin: 2px 0; }
+        .ProseMirror li { margin: 0; }
+        .ProseMirror code { background: #27272a; padding: 1px 3px; border-radius: 2px; font-size: 11px; }
+        .ProseMirror pre { background: #1a1d23; padding: 8px; border-radius: 4px; overflow-x: auto; margin: 4px 0; font-size: 11px; }
+        .ProseMirror blockquote { border-left: 2px solid #3b82f6; padding-left: 6px; color: #a1a1aa; margin: 2px 0; }
+        .ProseMirror p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
           color: #52525b;
           pointer-events: none;
+          float: left;
+          height: 0;
         }
-        [contenteditable] p { margin-bottom: 4px; }
-        [contenteditable] h1 { font-size: 1.3em; font-weight: 600; margin: 10px 0 4px; color: #f4f4f5; }
-        [contenteditable] h2 { font-size: 1.15em; font-weight: 600; margin: 8px 0 3px; color: #f4f4f5; }
-        [contenteditable] ul, [contenteditable] ol { padding-left: 18px; margin-bottom: 4px; }
-        [contenteditable] code { background: #27272a; padding: 1px 3px; border-radius: 3px; font-size: 12px; }
-        [contenteditable] pre { background: #1a1d23; padding: 10px; border-radius: 5px; overflow-x: auto; margin: 6px 0; }
-        [contenteditable] blockquote { border-left: 2px solid #3b82f6; padding-left: 8px; color: #a1a1aa; margin: 4px 0; }
-        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar { width: 2px; }
         ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 2px; }
       `}</style>
     </div>
